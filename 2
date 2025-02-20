@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Function to check for low memory conditions
+check_memory() {
+  echo "Checking memory..."
+  MEM_AVAILABLE=$(free -m | awk '/^Mem:/{print $7}')
+  echo "Available memory (in MB): $MEM_AVAILABLE"
+  # If less than 200 MB free, warn the user
+  if [ "$MEM_AVAILABLE" -lt 200 ]; then
+    echo "Warning: Available memory is low, which might cause processes to be killed."
+    echo "Consider closing other applications or increasing swap space."
+  fi
+}
+
+# Function to check swap usage
+check_swap() {
+  echo "Checking swap space..."
+  SWAP_TOTAL=$(free -m | awk '/^Swap:/{print $2}')
+  if [ "$SWAP_TOTAL" -eq 0 ]; then
+    echo "No swap space detected. It is recommended to create some swap space to avoid OOM issues."
+    echo "To create a 2GB swap file, you could run:"
+    echo "  sudo fallocate -l 2G /swapfile"
+    echo "  sudo chmod 600 /swapfile"
+    echo "  sudo mkswap /swapfile"
+    echo "  sudo swapon /swapfile"
+  else
+    echo "Swap space is available."
+  fi
+}
+
+# Check system memory and swap before starting
+check_memory
+check_swap
+
+# Create and navigate to the directory
+mkdir -p nexus-cli && cd nexus-cli
+
+# Install Rust non-interactively
+echo "Installing Rust..."
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# Source cargo environment for the current shell
+source $HOME/.cargo/env
+
+# Add the target for Rust
+echo "Adding Rust target..."
+rustup target add riscv32i-unknown-none-elf
+
+# Update and install dependencies
+echo "Updating packages and installing dependencies..."
+sudo apt update
+sudo apt install -y pkg-config libssl-dev protobuf-compiler
+
+# Install Nexus CLI
+echo "Installing Nexus CLI..."
+curl https://cli.nexus.xyz/ | sh
+
+echo "Setup completed successfully!"
